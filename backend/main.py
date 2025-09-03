@@ -2,8 +2,16 @@ import os
 import modal
 import uuid
 import base64
-from pydantic import BaseModel
 import requests
+from .audio_generation_models import (
+    GenerateMusicResponse,
+    GenerateMusicResponseS3,
+    AudioGenerationResponse,
+    GenerateFromDescriptionRequest,
+    GenerateWithCustomLyricsRequest,
+    GenerateFromDescribedLyricsRequest,
+)
+from .prompts import PROMPT_GENERATOR_PROMPT, LYRICS_GENERATOR_PROMPT
 
 app = modal.App("music-generator")
 
@@ -22,11 +30,6 @@ model_volume = modal.Volume.from_name(
 hf_volume = modal.Volume.from_name("qwen-hf-cache", create_if_missing=True)
 
 music_gen_secrets = modal.Secret.from_name("music-gen-secret")
-
-
-class GenerateMusicResponse(BaseModel):
-    audio_data: str
-    #   Add other fields as necessary
 
 
 @app.cls(
@@ -70,6 +73,51 @@ class MusicGenServer:
         )
         pipe.to("cuda")
 
+    def prompt_qwen(self, question: str) -> str:
+        messages = [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": question}
+        ]
+        text = self.tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True
+        )
+        model_inputs = self.tokenizer(
+            [text], return_tensors="pt").to(self.llm_model.device)
+
+        generated_ids = self.llm_model.generate(
+            model_inputs.input_ids,
+            max_new_tokens=512
+        )
+        generated_ids = [
+            output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
+        ]
+
+        response = self.tokenizer.batch_decode(
+            generated_ids, skip_special_tokens=True)[0]
+        return response
+
+    def generate_prompts(self, description: str) -> str:
+        full_prompt = PROMPT_GENERATOR_PROMPT.format(user_prompt=description)
+        return self.prompt_qwen(full_prompt)
+
+    def generate_lyrics(self, description: str) -> str:
+        full_prompt = LYRICS_GENERATOR_PROMPT.format(description=description)
+        return self.prompt_qwen(full_prompt)
+
+    def generate_and_upload_to_S3(self, prompt: str,
+                                  lyrics: str,
+                                  instrumental: bool,
+                                  audio_duration: int,
+                                  infer_step: int,
+                                  guidance_scale: int,
+                                  seed: int,
+                                  ) -> GenerateMusicResponseS3:
+        final_lyics = lyrics if not instrumental else "[instumental]"
+        print("Generating music with prompt:",
+              prompt, " and lyrics:", final_lyics)
+
     @modal.fastapi_endpoint(method="POST")
     def generate(self) -> GenerateMusicResponse:
         output_dir = "/tmp/outputs"
@@ -78,11 +126,19 @@ class MusicGenServer:
 
         self.music_model(
             prompt="A calming piano melody with soft strings in the background",
-            lyrics="A soothing tune to relax your mind as you drift into sleep  under the starry sky.  Let the gentle notes wash over you, bringing peace and tranquility to your soul. Feel the stress melt away with each chord, as the music guides you to a place of serenity and calm. Close your eyes and let the melody carry you to a world of dreams, where worries fade and only harmony remains. Embrace the night with this peaceful lullaby, a perfect soundtrack for restful sleep and sweet dreams.  ",
+            lyrics="" \
+            "A soothing tune to relax your mind as you drift into sleep " \
+            " under the starry sky.  Let the gentle notes wash over you, bringing p" \
+            "eace and tranquility to your soul. Feel the stress melt away with each c" \
+            "hord, as the music guides you to a place of serenity and calm. Close your eye" \
+            "s and let the melody carry you to a world of dreams, where worries fade and only harmon" \
+            "y remains. Embrace the night with this peaceful lullaby, a perfect soundtrack for restful sleep"
+            " and sweet dreams.  ",
             audio_duration=180,
             infer_step=60,
             guidance_scale=15,
             save_path=output_path
+            manual_seed=142,
         )
         with open(output_path, "rb") as f:
             audio_bytes = f.read()
@@ -92,8 +148,26 @@ class MusicGenServer:
 
         return GenerateMusicResponse(audio_data=audio_base64)
 
-    def test_endpoint(self):
-        self.music_model
+    @modal.fastapi_endpoint(method="POST")
+    def genrate_from_description(self, request: GenerateFromDescribedLyricsRequest) -> GenerateMusicResponse:
+        # Generate a prompt using llm  and generate lyrics using the prompt
+        prompt = self.generate_prompts(request.description)
+
+        lyrisc = ""
+
+        if not request.instrumental:
+            lyrics = self.generate_lyrics(request.description)
+
+        # Generate music using the generated prompt and lyrics
+
+    @modal.fastapi_endpoint(method="POST")
+    def generate_from_described_lyrics(self, request: GenerateWithCustomLyricsRequest) -> GenerateMusicResponse:
+        # Generate lyrics
+        pass
+
+    @modal.fastapi_endpoint(method="POST")
+    def generate_with_lyrics(self, request: GenerateFromDescribedLyricsRequest) -> GenerateMusicResponse:
+        pass
 
 
 @app.local_entrypoint()
