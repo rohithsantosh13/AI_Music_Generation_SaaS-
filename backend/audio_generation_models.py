@@ -14,7 +14,7 @@ class GenerateMusicResponseS3(BaseModel):
 
 
 class AudioGenerationBase(BaseModel):
-    audio_duration: float = 15.0  # in seconds
+    audio_duration: float = 180  # in seconds
     seed: int = 42  # random seed for generation
     guidance_scale: float = 15.0  # guidance scale for diffusion
     infer_step: int = 60  # number of diffusion steps

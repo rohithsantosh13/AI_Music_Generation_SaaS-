@@ -12,11 +12,16 @@ def main():
 
     request_data = GenerateFromDescriptionRequest(
         full_described_song="A calming piano melody with soft strings in the background",
-        guidance_scale=7.5
+        guidance_scale=15
     )
+
+    headers = {
+    "Modal-Key": "your-modal-key",
+    "Modal-Secret": "your-modal-secret"
+    }
     payload = request_data.model_dump()
 
-    response = requests.post(endpoint_url, json=payload)
+    response = requests.post(endpoint_url, json=payload,headers=headers)
     response.raise_for_status()
     result = GenerateMusicResponseS3(**response.json())
     print("Response from the server:", result.s3_key,
