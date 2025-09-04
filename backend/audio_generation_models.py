@@ -13,7 +13,7 @@ class GenerateMusicResponseS3(BaseModel):
     categories: List[str]
 
 
-class AudioGenerationResponse(BaseModel):
+class AudioGenerationBase(BaseModel):
     audio_duration: float = 15.0  # in seconds
     seed: int = 42  # random seed for generation
     guidance_scale: float = 15.0  # guidance scale for diffusion
@@ -21,15 +21,15 @@ class AudioGenerationResponse(BaseModel):
     instrumental: bool = False  # whether to generate instrumental music
 
 
-class GenerateFromDescriptionRequest(AudioGenerationResponse):
+class GenerateFromDescriptionRequest(AudioGenerationBase):
     full_described_song: str
 
 
-class GenerateWithCustomLyricsRequest(AudioGenerationResponse):
+class GenerateWithCustomLyricsRequest(AudioGenerationBase):
     prompt: str
     lyrics: str
 
 
-class GenerateFromDescribedLyricsRequest(AudioGenerationResponse):
+class GenerateWithDescribedLyricsRequest(AudioGenerationBase):
     prompt: str
     described_lyrics: str

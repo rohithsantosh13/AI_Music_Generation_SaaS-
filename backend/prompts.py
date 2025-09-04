@@ -29,3 +29,7 @@ Description: "{description}"
 
 Lyrics:
 """
+
+THUMBNAIL_GENERATOR_PROMPT = """prompt for a music album cover, {user_prompt}, artstation, high quality, digital art"""
+
+CATOGERIES_GENERATOR_PROMPT = """Based on the following music description, list 3-5 relevant genres or categories as a comma-separated list. For example: Pop, Electronic, Sad, 80s. Description: '{description}'"""
