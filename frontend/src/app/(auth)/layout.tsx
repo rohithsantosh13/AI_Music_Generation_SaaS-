@@ -2,8 +2,8 @@ import "~/styles/globals.css";
 
 import { type Metadata } from "next";
 import { Geist } from "next/font/google";
+import { Providers } from "~/components/providers";
 import { Toaster } from "~/components/ui/sonner";
-import { Providers } from "~/components/provider";
 
 export const metadata: Metadata = {
   title: "Music Generator",
@@ -20,13 +20,12 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={geist.variable}>
-      <body className="flex flex-col min-h-svh ">
+    <html lang="en" className={`${geist.variable}`}>
+      <body className="flex min-h-svh flex-col">
         <Providers>
           {children}
           <Toaster />
         </Providers>
-
       </body>
     </html>
   );

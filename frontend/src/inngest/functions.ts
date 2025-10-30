@@ -87,7 +87,7 @@ export const generateSong = inngest.createFunction(
 
         // Custom mode: Lyrics + prompt
         else if (song.lyrics && song.prompt) {
-          endpoint = env.GENERRATE_WITH_LYRICS;
+          endpoint = env.GENERATE_WITH_LYRICS;
           body = {
             lyrics: song.lyrics,
             prompt: song.prompt,
@@ -137,14 +137,30 @@ export const generateSong = inngest.createFunction(
         },
       });
 
-      await step.run("update-song-result", async () => {
-        const responseData = response.ok
-          ? ((await response.json()) as {
-            s3_key: string;
-            cover_image_s3_key: string;
-            categories: string[];
-          })
-          : null;
+      const responseData = await step.run("update-song-result", async () => {
+        let responseData: {
+          s3_key: string;
+          cover_image_s3_key: string;
+          categories: string[];
+        } | null = null;
+
+        if (response.ok) {
+          try {
+            // Clone the response to read it as text first for debugging
+            const responseText = await response.text();
+            
+            // Try to parse the text as JSON
+            responseData = JSON.parse(responseText) as {
+              s3_key: string;
+              cover_image_s3_key: string;
+              categories: string[];
+            };
+          } catch (error) {
+            console.error("Failed to parse response JSON:", error);
+            // If JSON parsing fails, treat it as a failed response
+            responseData = null;
+          }
+        }
 
         await db.song.update({
           where: {
@@ -153,7 +169,7 @@ export const generateSong = inngest.createFunction(
           data: {
             s3Key: responseData?.s3_key,
             thumbnailS3Key: responseData?.cover_image_s3_key,
-            status: response.ok ? "processed" : "failed",
+            status: responseData ? "processed" : "failed",
           },
         });
 
@@ -172,10 +188,13 @@ export const generateSong = inngest.createFunction(
             },
           });
         }
+
+        return responseData;
       });
 
       return await step.run("deduct-credits", async () => {
-        if (!response.ok) return;
+        // Only deduct credits if the response was successfully parsed
+        if (!responseData) return;
 
         return await db.user.update({
           where: { id: userId },

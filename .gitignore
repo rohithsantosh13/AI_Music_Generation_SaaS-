@@ -90,3 +90,4 @@ Desktop.ini
 #Exclude ACE-Step
 backend/ACE-Step
 OUTPUTS/
+backend/Modal-secrets.txt

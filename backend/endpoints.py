@@ -191,11 +191,11 @@ class MusicGenServer:
     # Generate music using the generated prompt and lyrics
     @modal.fastapi_endpoint(method="POST", requires_proxy_auth=True)
     def generate_from_described_lyrics(self, request: GenerateWithDescribedLyricsRequest) -> GenerateMusicResponseS3:
-        lyrisc = ""
+        lyrics = ""
 
         if not request.instrumental:
             lyrics = self.generate_lyrics(request.described_lyrics)
-
+        
         return self.generate_and_upload_to_S3(
             prompt=request.prompt,
             lyrics=lyrics,
