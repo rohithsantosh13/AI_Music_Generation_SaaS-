@@ -104,7 +104,12 @@ export const generateSong = inngest.createFunction(
             ...commomParams,
           };
         }
-
+        console.log("Environment check:", {
+          hasDescription: !!env.GENERATE_FROM_DESCRIPTION,
+          hasLyrics: !!env.GENERATE_WITH_LYRICS,
+          hasDescribedLyrics: !!env.GENERATE_FROM_DESCRIBED_LYRICS,
+          endpoint: endpoint, // This will show if it's empty
+        });
         return {
           userId: song.user.id,
           credits: song.user.credits,
@@ -148,7 +153,7 @@ export const generateSong = inngest.createFunction(
           try {
             // Clone the response to read it as text first for debugging
             const responseText = await response.text();
-            
+
             // Try to parse the text as JSON
             responseData = JSON.parse(responseText) as {
               s3_key: string;
